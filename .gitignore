@@ -3,12 +3,14 @@
 frontend/.env
 
 # Node.js dependencies (React)
+node_modules/
 frontend/node_modules/
 
 # Build output (React)
 frontend/dist/
 frontend/build/
 frontend/.vite/
+.next/
 
 # Logs and debugging
 frontend/npm-debug.log*
@@ -29,5 +31,6 @@ __pycache__/
 venv/
 
 # Ignore package manager lock files (optional)
+package-lock.json
 frontend/package-lock.json
 frontend/yarn.lock

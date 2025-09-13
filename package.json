@@ -1,0 +1,21 @@
+{
+  "name": "synthea",
+  "version": "1.0.0",
+  "description": "This project is an advanced AI chatbot that integrates multiple tools for enhanced functionality, including web search, stock price checking, web scraping, and image generation. The chatbot is built using Python (Flask for the backend) and React for the frontend, with LangChain for AI tool integration.",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "test": "echo \"No tests specified\" && exit 0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "next": "^15.5.3",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  }
+}

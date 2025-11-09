@@ -1,93 +1,128 @@
-# AI-AGENT
 # Synthea
 
-# Advanced AI Chatbot with Tool Integration
+An extensible Flask backend for the **Synthea** AI assistant. The service exposes a simple HTTP API that proxies requests to a LangChain agent equipped with real-world tools such as Tavily search, Alpha Vantage stock quotes, Apify web scraping, OpenAI image generation, Gmail e-mail delivery, and Calendly scheduling.
 
-This project is an advanced AI chatbot that integrates multiple tools for enhanced functionality, including web search, stock price checking, web scraping, and image generation. The chatbot is built using Python (Flask for the backend) and React for the frontend, with LangChain for AI tool integration.
+The repository only contains the backend runtime. It is intended to power a separate front-end client (for example a React single-page app) that communicates with the `/query` endpoint.
 
 ## Features
 
-- **Web Search**: Perform web searches using the Tavily API.
-- **Stock Price Checking**: Fetch real-time stock prices using Alpha Vantage.
-- **Web Scraping**: Extract structured data from web pages using Apify's RAG Web Browser.
-- **Image Generation**: Generate images based on textual prompts using DALL·E.
-- **Session Management**: Maintains user sessions and enforces rate limits.
-- **Interactive UI**: A React-based frontend for seamless user interaction.
-- **Coming Soon**: Voice call functionality for hands-free interaction.
+- 🌐 **Multi-tool AI agent** – Uses LangChain to orchestrate tool calls for web search, stock prices, web scraping, e-mail sending, Calendly invite creation, and DALL·E image generation.
+- 🧠 **Session-aware conversations** – Maintains chat history per session key and applies a short-term rate limit (10 requests/minute) to prevent abuse.
+- 🔌 **Pluggable design** – Tools are declared in `controllers/tools.py`, making it straightforward to add or remove integrations.
+- 🩺 **Health check endpoint** – Lightweight `/health` route for uptime monitoring.
 
-## Tools Integrated
+## Project layout
 
-1. **Tavily Search API**: For real-time web search results.
-2. **Alpha Vantage API**: For stock market data.
-3. **Apify Actors**: For web scraping tasks.
-4. **DALL·E API**: For generating images from text prompts.
+```
+.
+├── application.py         # Flask application entrypoint and HTTP routes
+├── controllers/
+│   ├── agent.py           # LangChain agent setup, session management, rate limiting
+│   └── tools.py           # Tool definitions (Tavily, Alpha Vantage, Apify, DALL·E, Gmail, Calendly)
+├── requirements.txt       # Python dependencies
+└── README.md              # Project documentation
+```
 
 ## Prerequisites
 
-- Python 3.8+
-- Node.js (for the frontend)
-- API keys for:
-  - Tavily
-  - Alpha Vantage
-  - Apify
-  - OpenAI (for DALL·E)
+- Python 3.9 or newer
+- A virtual environment tool such as `venv` or `conda`
+- API credentials for any tools you plan to enable (see [Environment variables](#environment-variables))
 
-## Setup Instructions
+## Getting started
 
-### Backend (Flask)
-
-1. **Clone the repository**:
+1. **Clone and enter the repository**
    ```bash
    git clone <repository-url>
-   cd <repository-folder>
+   cd Synthea
+   ```
 
-### Set up a virtual environment:
+2. **Create and activate a virtual environment** (example with `venv`):
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+   ```
 
--python3 -m venv venv
--source venv/bin/activate  # On Windows: venv\Scripts\activate
--Install dependencies:
+3. **Install backend dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
 
--pip3 install -r requirements.txt
--Set up environment variables:
--Create a .env file in the root directory and add your API keys:
--python app.py
-The backend will run on http://localhost:5000.
+4. **Configure environment variables** (see below) in a `.env` file at the project root.
 
-## Frontend (React)
-Navigate to the frontend directory:
+5. **Run the development server**
+   ```bash
+   python application.py
+   ```
+   The API will be available at `http://localhost:5000` by default. Set the `PORT` environment variable to override the port and `ENV=production` to disable Flask debug mode.
 
--cd frontend
--Install dependencies:
+For production deployments you can serve the app with Gunicorn:
+```bash
+gunicorn -b 0.0.0.0:5000 application:app
+```
 
--npm install
--Run the React app:
--npm run dev
--The frontend will run on http://localhost:5173.
+## Environment variables
 
-Usage
-Open the React app in your browser (http://localhost:5173).
+Create a `.env` file in the project root and add the variables required for the integrations you intend to use:
 
-Interact with the chatbot by typing messages in the input box.
+| Variable | Required for | Notes |
+| --- | --- | --- |
+| `OPENAI_API_KEY` | DALL·E image generation | Used by `langchain-openai` for both chat and image models.
+| `TAVILY_API_KEY` | Tavily web search | Required by `TavilySearchResults`.
+| `ALPHAVANTAGE_API_KEY` | Alpha Vantage stock quotes | Required by the Alpha Vantage wrapper.
+| `APIFY_API_TOKEN` | Apify web scraping | Enables the `apify/rag-web-browser` actor.
+| `GMAIL_MAIL` & `GMAIL_APP_PASSWORD` | Gmail SMTP e-mail sending | Use an app password for accounts with 2FA enabled.
+| `CALENDLY_API_KEY` & `CALENDLY_EVENT_UUID` | Calendly scheduling links | `CALENDLY_EVENT_UUID` should reference the event type to expose.
+| `ENV` | Flask runtime environment | Defaults to `develop`.
+| `PORT` | HTTP port for Flask | Defaults to `5000`.
 
-The chatbot will use the appropriate tool based on your query and provide a response.
+Only the variables relevant to the tools you use are required. Tools without credentials are skipped gracefully by the LangChain agent.
 
-Example Queries
-Web Search: "What is the latest news on AI?"
+## API
 
-Stock Price: "What is the current price of AAPL?"
+### `GET /health`
+Returns a simple JSON payload confirming the service is online.
 
-Web Scraping: "Scrape the latest articles from TechCrunch."
+```json
+{"status": "healthy"}
+```
 
-Image Generation: "Generate an image of a futuristic city."
+### `POST /query`
+Sends a user prompt to the LangChain agent. Provide a persistent `session_key` to maintain conversation context and rate limiting. Responses may include additional metadata (e.g., an `imageUrl` when the image generation tool is used).
 
-API Endpoints
-Health Check: GET /health
+**Request body**
+```json
+{
+  "query": "What is the latest price of AAPL?",
+  "session_key": "user-123"
+}
+```
 
-Rate Limiting
-The chatbot enforces a rate limit of 10 requests per minute per session. If the limit is exceeded, the user will receive an error message.
+**Successful response**
+```json
+{
+  "reply": {
+    "answer": "Apple Inc. (AAPL) is trading at $182.52 right now.",
+    "tool": "stock_price_checker"
+  },
+  "session_key": "user-123"
+}
+```
 
-Session Management
-Sessions are automatically cleaned up after 5 minutes of inactivity. A background thread runs every hour to remove inactive sessions.
+Error responses include appropriate HTTP codes (for example, `400` when the `query` field is empty or rate limits are exceeded).
 
-Contributing
-Contributions are welcome! Please open an issue or submit a pull request for any improvements or bug fixes.
+## Customising the agent
+
+- Add, remove, or adjust tools in `controllers/tools.py`. Each tool is defined with a descriptive name, a callable, and a natural language description consumed by LangChain.
+- Modify the system prompt in `controllers/agent.py` to adapt the assistant’s personality or formatting requirements.
+- Tune the request rate limit by editing `AgentHandler.RATE_LIMIT`.
+
+## Development tips
+
+- The agent keeps session history in memory via `ChatMessageHistory`. Restart the process to clear all sessions.
+- Background cleanup runs hourly and removes sessions that have been idle for more than five minutes.
+- If you encounter SSL issues with SMTP, ensure that less secure app access is enabled or use an app-specific password for Gmail.
+
+## Contributing
+
+Issues and pull requests are welcome! Please include reproduction steps or sample payloads when reporting bugs or proposing new integrations.
